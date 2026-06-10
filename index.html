@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>授業報告書ツール｜クロフネ</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%20100%20100%27%3E%3Ctext%20y%3D%27.9em%27%20font-size%3D%2790%27%3E%F0%9F%93%8B%3C/text%3E%3C/svg%3E">
+    <title>授業報告書ツール｜クロフネ</title>
 <style>
 * { box-sizing: border-box; }
 body { font-family: 'Hiragino Sans', sans-serif; background: #f3f4f6; margin: 0; font-size: 14px; color: #1f2937; }
@@ -689,15 +690,10 @@ textarea.field { resize: vertical; }
           <div class="settings-hint"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> 記録するボタンのデータ送信先。Google Apps ScriptのデプロイURLを入力。</div>
         </div>
 
-        <!-- 会員管理インポート -->
+        <!-- 会員管理GAS連携（自動） -->
         <div class="settings-section" style="border-top:1px solid #f3f4f6;margin-top:20px;padding-top:18px;">
-          <label>生徒マスターインポート（会員管理ツール連携）</label>
-          <div class="settings-hint" style="margin-bottom:10px;">会員管理ツールからエクスポートしたJSONファイルを読み込みます。既存の授業ログ・報告書データは上書きされません。</div>
-          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-            <button type="button" id="btnImportMembers" onclick="triggerMemberImport()" style="background:#1d4ed8;color:white;border:none;border-radius:7px;padding:8px 16px;font-size:13px;font-weight:bold;cursor:pointer;font-family:inherit;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> JSONファイルを選択</button>
-            <span id="importMembersStatus" style="font-size:12px;color:#6b7280;">未インポート</span>
-          </div>
-          <input type="file" id="memberImportFile" accept=".json" style="display:none;" onchange="handleMemberImport(event)" />
+          <label>生徒マスター連携（会員管理GAS自動取得）</label>
+          <div class="settings-hint">上記のGAS WebアプリURLを設定すると、会員管理の生徒マスター（CA属性=ON の生徒）が自動で読み込まれます。手動インポートは不要です。</div>
         </div>
       </div>
 
@@ -978,7 +974,7 @@ textarea.field { resize: vertical; }
   <button class="btn-gen-all" id="btnGenAll">🖊️ 全員分を生成する</button>
   <button class="btn-ai-gen" id="btnAiGenAll" style="padding:12px 16px;font-size:13px;">✨ 全員AIで生成</button>
   <button class="btn-gen-all" id="btnCopyAll" style="background:#059669;">📋 全員分をコピーする</button>
-  <button class="btn-record" id="btnRecord" style="display:none;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> 記録する</button>
+  <button class="btn-record" id="btnRecord" style="display:none;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> 全員分を記録する</button>
   <span style="margin-left:auto;"></span>
   <button class="btn-reset-all" id="btnReset" style="font-size:12px;padding:8px 12px;">🔄 全リセット</button>
 </div>
@@ -986,7 +982,7 @@ textarea.field { resize: vertical; }
 <!-- 記録確認モーダル -->
 <div class="record-overlay" id="recordOverlay">
   <div class="record-modal">
-    <h3>授業記録をスプレッドシートに保存しますか？</h3>
+    <h3>全員分の授業記録をスプレッドシートに保存しますか？</h3>
     <div class="record-summary" id="recordSummary"></div>
     <div class="record-footer">
       <button class="btn-record-cancel" id="btnRecordCancel">キャンセル</button>
@@ -3119,7 +3115,7 @@ window.onload = function() {
     statusEl.textContent = '読み込み中...';
     errEl.style.display = 'none';
     boxesEl.innerHTML = '';
-    fetch(gasUrl + '?action=getStudents')
+    fetch(gasUrl + '?action=getCaStudents')
       .then(function(r){ return r.json(); })
       .then(function(data) {
         if (!data.students || !data.students.length) {
@@ -3128,8 +3124,6 @@ window.onload = function() {
         }
         statusEl.textContent = data.students.length + '名分のリストを取得しました';
         window.masterStudents = data.students; // 履歴タブ用に保存
-        // インポートデータを再マージ（GAS取得でリセットされるのを防ぐ）
-        applyImportToMasterStudents();
         // 現在の教室選択でフィルタして描画
         var currentClassroom = (document.getElementById('classroom') || {}).value || '';
         renderStudentCheckboxes(currentClassroom);
@@ -3571,7 +3565,7 @@ function initHistoryTab() {
   var masters = window.masterStudents || [];
   if (!masters.length) {
     if (loadingEl) loadingEl.textContent = '生徒マスタを取得中...';
-    fetch(gasUrl + '?action=getStudents')
+    fetch(gasUrl + '?action=getCaStudents')
       .then(function(r){ return r.json(); })
       .then(function(data) {
         if (data.success && data.students && data.students.length) {
@@ -4157,6 +4151,7 @@ function closeEditModal() {
 // ===== 生徒マスターモーダル =====
 var _studentMasterData = []; // 現在編集中の生徒リスト
 var _editingStudentIdx = null; // 編集中の生徒インデックス（nullなら新規）
+var _studentMasterLoaded = false; // マスタ取得完了フラグ（空リスト保存→全消しの防止）
 
 function openStudentMasterModal() {
   var gasUrl = currentSettings && currentSettings.gasUrl && currentSettings.gasUrl.trim();
@@ -4173,23 +4168,38 @@ function openStudentMasterModal() {
     return;
   }
   body.innerHTML = '<div style="padding:20px;text-align:center;color:#9ca3af;font-size:13px;">読み込み中...</div>';
+  _studentMasterLoaded = false;
   var formData = new FormData();
-  formData.append('action', 'getStudents');
+  formData.append('action', 'getCaStudents');
   fetch(gasUrl, { method:'POST', body: formData })
     .then(function(r){ return r.json(); })
     .then(function(data) {
       if (data && data.students) {
         _studentMasterData = data.students;
+        _studentMasterLoaded = true;
+        renderStudentMasterTable();
       } else {
-        _studentMasterData = window.masterStudents || [];
+        studentMasterFallback();
       }
-      renderStudentMasterTable();
     })
     .catch(function(e) {
-      // GASがgetStudentsに未対応の場合はキャッシュを使用
-      _studentMasterData = (window.masterStudents || []).map(function(s){ return Object.assign({}, s); });
-      renderStudentMasterTable();
+      studentMasterFallback();
     });
+}
+
+// マスタ取得失敗時のフォールバック：キャッシュがあれば警告付きで表示、空なら編集不可
+function studentMasterFallback() {
+  var cache = (window.masterStudents || []).map(function(s){ return Object.assign({}, s); });
+  var body = document.getElementById('studentMasterBody');
+  if (!cache.length) {
+    _studentMasterData = [];
+    body.innerHTML = '<div style="padding:20px;color:#b91c1c;font-size:13px;">生徒マスタの取得に失敗しました。このまま保存すると全データが消えるため、編集できません。<br>通信状況を確認してモーダルを開き直してください。</div>';
+    return;
+  }
+  _studentMasterData = cache;
+  _studentMasterLoaded = true;
+  showToast('⚠️ GASから取得できませんでした。キャッシュを表示しています', true);
+  renderStudentMasterTable();
 }
 
 function renderStudentMasterTable() {
@@ -4264,17 +4274,19 @@ function closeStudentEditModal() {
 function saveStudentEdit() {
   var name = (document.getElementById('seInputName').value || '').trim();
   if (!name) { alert('名前を入力してください'); return; }
-  var s = {
+  var changes = {
     name: name,
     grade: document.getElementById('seInputGrade').value,
     youbi: document.getElementById('seInputYoubi').value,
     classroom: document.getElementById('seInputClassroom').value
   };
   if (_editingStudentIdx !== null) {
-    // 既存のIDを維持
+    // 既存レコードに変更4項目だけをマージ（status・attrCa・komas等の既存値を維持）
+    var s = Object.assign({}, _studentMasterData[_editingStudentIdx], changes);
     s.id = _studentMasterData[_editingStudentIdx].id || '';
     _studentMasterData[_editingStudentIdx] = s;
   } else {
+    var s = Object.assign({}, changes);
     s.id = 'new_' + Date.now();
     _studentMasterData.push(s);
   }
@@ -4284,6 +4296,10 @@ function saveStudentEdit() {
 }
 
 function saveStudentMasterToGas() {
+  if (!_studentMasterLoaded) {
+    showToast('生徒マスタの読み込みが完了していないため保存できません', true);
+    return;
+  }
   var gasUrl = currentSettings && currentSettings.gasUrl && currentSettings.gasUrl.trim();
   if (!gasUrl) return;
   var formData = new FormData();
@@ -5161,17 +5177,20 @@ function openKenteiMsgModal() {
   // まずモーダルを開いてローカルデータを表示（即時）
   var localMsgs = loadKenteiMessagesLocal();
   var ids = ['k1','k2','k3','k4','k4b','g18','g21','g24','g27','g28','g29','g30'];
+  var openVals = {}; // 開いた時点の値（dirtyガード用）
   ids.forEach(function(id) {
     var el = document.getElementById('kenteiMsg_' + id);
-    if (el) el.value = localMsgs[id] || '';
+    if (el) { el.value = localMsgs[id] || ''; openVals[id] = el.value; }
   });
   document.getElementById('kenteiMsgOverlay').classList.add('show');
 
   // バックグラウンドでGASから最新を取得して更新
+  // ユーザーが編集中・編集済みの欄（開いた時点から値が変わった欄）は上書きしない
   loadKenteiMessagesFromGAS(function(msgs) {
     ids.forEach(function(id) {
       var el = document.getElementById('kenteiMsg_' + id);
-      if (el && document.getElementById('kenteiMsgOverlay').classList.contains('show')) {
+      if (el && document.getElementById('kenteiMsgOverlay').classList.contains('show')
+          && el.value === openVals[id]) {
         el.value = msgs[id] || '';
       }
     });
@@ -5364,9 +5383,7 @@ function applyImportToMasterStudents() {
 })();
 
 // ページ読み込み時にインポートデータを復元
-document.addEventListener('DOMContentLoaded', function() {
-  applyImportToMasterStudents();
-});
+// 生徒マスターはGAS（getCaStudents）から自動取得するため手動インポート不要
 </script>
 
 <!-- 特別メッセージモーダル -->
